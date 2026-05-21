@@ -3,13 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Monitor de Casas Mais Baratas API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: imoveis
+    description: Operações de imóveis
+  - name: favoritos
+    description: Favoritos do usuário
+  - name: fontes
+    description: Fontes de pesquisa
+  - name: scraping
+    description: Operações de scraping
+  - name: relatorios
+    description: Relatórios de oportunidades
 paths:
   /healthz:
     get:
@@ -24,6 +34,282 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /imoveis:
+    get:
+      operationId: listImoveis
+      tags: [imoveis]
+      summary: Listar imóveis
+      description: Lista imóveis com filtros e ordenação por preço
+      parameters:
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [compra, aluguel, todos]
+          description: Tipo de negócio
+        - name: cidade
+          in: query
+          schema:
+            type: string
+          description: Filtrar por cidade
+        - name: bairro
+          in: query
+          schema:
+            type: string
+          description: Filtrar por bairro
+        - name: precoMin
+          in: query
+          schema:
+            type: number
+          description: Preço mínimo
+        - name: precoMax
+          in: query
+          schema:
+            type: number
+          description: Preço máximo
+        - name: quartos
+          in: query
+          schema:
+            type: integer
+          description: Número mínimo de quartos
+        - name: apenasAbaixoMedia
+          in: query
+          schema:
+            type: boolean
+          description: Mostrar apenas abaixo da média
+        - name: apenasFavoritos
+          in: query
+          schema:
+            type: boolean
+          description: Mostrar apenas favoritos
+        - name: fonteId
+          in: query
+          schema:
+            type: integer
+          description: Filtrar por fonte
+        - name: ordenar
+          in: query
+          schema:
+            type: string
+            enum: [preco_asc, preco_desc, data_desc, preco_m2_asc]
+          description: Ordenação
+        - name: pagina
+          in: query
+          schema:
+            type: integer
+          description: Página (paginação)
+        - name: porPagina
+          in: query
+          schema:
+            type: integer
+          description: Itens por página
+      responses:
+        "200":
+          description: Lista de imóveis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImovelListResponse"
+
+  /imoveis/{id}:
+    get:
+      operationId: getImovel
+      tags: [imoveis]
+      summary: Buscar imóvel por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Imóvel encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Imovel"
+        "404":
+          description: Não encontrado
+
+  /imoveis/{id}/favorito:
+    patch:
+      operationId: toggleFavorito
+      tags: [favoritos]
+      summary: Marcar ou desmarcar como favorito
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FavoritoInput"
+      responses:
+        "200":
+          description: Favorito atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Imovel"
+        "404":
+          description: Não encontrado
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [imoveis]
+      summary: Resumo do dashboard
+      description: Retorna estatísticas e destaques do monitoramento
+      responses:
+        "200":
+          description: Dados do dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /fontes:
+    get:
+      operationId: listFontes
+      tags: [fontes]
+      summary: Listar fontes configuradas
+      responses:
+        "200":
+          description: Lista de fontes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Fonte"
+    post:
+      operationId: createFonte
+      tags: [fontes]
+      summary: Adicionar nova fonte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FonteInput"
+      responses:
+        "201":
+          description: Fonte criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fonte"
+
+  /fontes/{id}:
+    patch:
+      operationId: updateFonte
+      tags: [fontes]
+      summary: Atualizar fonte
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FonteUpdate"
+      responses:
+        "200":
+          description: Fonte atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fonte"
+        "404":
+          description: Não encontrada
+    delete:
+      operationId: deleteFonte
+      tags: [fontes]
+      summary: Remover fonte
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removida com sucesso
+        "404":
+          description: Não encontrada
+
+  /scraping/iniciar:
+    post:
+      operationId: iniciarScraping
+      tags: [scraping]
+      summary: Iniciar scraping de imóveis
+      description: Dispara o processo de scraping via Firecrawl para uma ou todas as fontes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrapingInput"
+      responses:
+        "202":
+          description: Scraping iniciado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrapingStatus"
+
+  /scraping/status:
+    get:
+      operationId: getScrapingStatus
+      tags: [scraping]
+      summary: Status do scraping
+      description: Retorna o status atual do scraping
+      responses:
+        "200":
+          description: Status do scraping
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrapingStatus"
+
+  /relatorio:
+    get:
+      operationId: gerarRelatorio
+      tags: [relatorios]
+      summary: Gerar relatório das melhores oportunidades
+      description: Retorna os melhores imóveis ordenados por oportunidade (mais abaixo da média)
+      parameters:
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [compra, aluguel, todos]
+        - name: cidade
+          in: query
+          schema:
+            type: string
+        - name: limite
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Relatório gerado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relatorio"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +320,253 @@ components:
       required:
         - status
 
+    Imovel:
+      type: object
+      required:
+        - id
+        - titulo
+        - preco
+        - tipo
+        - fonteId
+        - urlOriginal
+        - coletadoEm
+        - favorito
+        - abaixoDaMedia
+      properties:
+        id:
+          type: integer
+        titulo:
+          type: string
+        descricao:
+          type: ["string", "null"]
+        preco:
+          type: number
+        precoM2:
+          type: ["number", "null"]
+        tipo:
+          type: string
+          enum: [compra, aluguel]
+        cidade:
+          type: ["string", "null"]
+        bairro:
+          type: ["string", "null"]
+        endereco:
+          type: ["string", "null"]
+        quartos:
+          type: ["integer", "null"]
+        banheiros:
+          type: ["integer", "null"]
+        area:
+          type: ["number", "null"]
+        vagas:
+          type: ["integer", "null"]
+        imagemUrl:
+          type: ["string", "null"]
+        urlOriginal:
+          type: string
+        fonteId:
+          type: integer
+        fonteNome:
+          type: ["string", "null"]
+        favorito:
+          type: boolean
+        abaixoDaMedia:
+          type: boolean
+        percentualAbaixoMedia:
+          type: ["number", "null"]
+        mediaRegiao:
+          type: ["number", "null"]
+        coletadoEm:
+          type: string
+          format: date-time
+
+    ImovelListResponse:
+      type: object
+      required:
+        - items
+        - total
+        - pagina
+        - porPagina
+        - totalPaginas
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Imovel"
+        total:
+          type: integer
+        pagina:
+          type: integer
+        porPagina:
+          type: integer
+        totalPaginas:
+          type: integer
+
+    FavoritoInput:
+      type: object
+      required:
+        - favorito
+      properties:
+        favorito:
+          type: boolean
+
+    DashboardStats:
+      type: object
+      required:
+        - totalImoveis
+        - totalFavoritos
+        - imoveisAbaixoMedia
+        - mediaPrecoCompra
+        - mediaPrecoAluguel
+        - ultimaAtualizacao
+        - imoveisDestaque
+        - distribuicaoCidades
+      properties:
+        totalImoveis:
+          type: integer
+        totalFavoritos:
+          type: integer
+        imoveisAbaixoMedia:
+          type: integer
+        mediaPrecoCompra:
+          type: ["number", "null"]
+        mediaPrecoAluguel:
+          type: ["number", "null"]
+        ultimaAtualizacao:
+          type: ["string", "null"]
+          format: date-time
+        imoveisDestaque:
+          type: array
+          items:
+            $ref: "#/components/schemas/Imovel"
+        distribuicaoCidades:
+          type: array
+          items:
+            $ref: "#/components/schemas/CidadeContagem"
+
+    CidadeContagem:
+      type: object
+      required:
+        - cidade
+        - total
+      properties:
+        cidade:
+          type: string
+        total:
+          type: integer
+
+    Fonte:
+      type: object
+      required:
+        - id
+        - nome
+        - url
+        - ativa
+        - criadaEm
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        url:
+          type: string
+        descricao:
+          type: ["string", "null"]
+        ativa:
+          type: boolean
+        ultimoScraping:
+          type: ["string", "null"]
+          format: date-time
+        totalImoveisColetados:
+          type: integer
+        criadaEm:
+          type: string
+          format: date-time
+
+    FonteInput:
+      type: object
+      required:
+        - nome
+        - url
+      properties:
+        nome:
+          type: string
+        url:
+          type: string
+        descricao:
+          type: string
+
+    FonteUpdate:
+      type: object
+      properties:
+        nome:
+          type: string
+        url:
+          type: string
+        descricao:
+          type: string
+        ativa:
+          type: boolean
+
+    ScrapingInput:
+      type: object
+      properties:
+        fonteId:
+          type: ["integer", "null"]
+          description: ID da fonte específica, ou null para todas
+
+    ScrapingStatus:
+      type: object
+      required:
+        - rodando
+        - imoveisColetados
+        - mensagem
+      properties:
+        rodando:
+          type: boolean
+        fonteAtual:
+          type: ["string", "null"]
+        imoveisColetados:
+          type: integer
+        erros:
+          type: integer
+        mensagem:
+          type: string
+        iniciadoEm:
+          type: ["string", "null"]
+          format: date-time
+
+    Relatorio:
+      type: object
+      required:
+        - geradoEm
+        - totalAnalisados
+        - melhoresOportunidades
+      properties:
+        geradoEm:
+          type: string
+          format: date-time
+        totalAnalisados:
+          type: integer
+        mediaGeralCompra:
+          type: ["number", "null"]
+        mediaGeralAluguel:
+          type: ["number", "null"]
+        melhoresOportunidades:
+          type: array
+          items:
+            $ref: "#/components/schemas/OportunidadeItem"
+
+    OportunidadeItem:
+      type: object
+      required:
+        - imovel
+        - pontuacao
+        - motivo
+      properties:
+        imovel:
+          $ref: "#/components/schemas/Imovel"
+        pontuacao:
+          type: number
+        motivo:
+          type: string
